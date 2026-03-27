@@ -63,7 +63,7 @@ def generate_digest():
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     # Using the current stable model ID
-    model_id = "gemini-2.0-flash" 
+    model_id = "gemini-3.1-flash-lite-preview" 
 
     try:
         # GOOGLE SEARCH TOOL REMOVED HERE
