@@ -115,7 +115,7 @@ def generate_digest():
     try:
         # We enable the Google Search tool so the AI can fetch the last 24-48 hours of news
         response = client.models.generate_content(
-            model="gemini-2.5-pro", # You can use gemini-3.1-pro-preview if you have access
+            model="gemini-1.5-flash", # You can use gemini-3.1-pro-preview if you have access
             contents=UPSC_PROMPT,
             config=types.GenerateContentConfig(
                 temperature=0.3, # Low temperature to keep formatting strict and factual
