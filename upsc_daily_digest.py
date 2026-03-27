@@ -1,7 +1,6 @@
 import os
 import requests
 import time
-import re
 from google import genai
 from google.genai import types
 
@@ -39,49 +38,48 @@ Output Format:
 """
 
 # ==============================================================================
-# 2. TELEGRAM SENDER (REPAIRED)
+# 2. TELEGRAM SENDER (STRICT CHARACTER LIMIT)
 # ==============================================================================
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
-    # SMART SPLIT: Split by Topic instead of character count to avoid breaking *bold* tags
-    # We look for the start of a new topic (indicated by a headline in brackets)
-    chunks = re.split(r'(\n\*\[)', text)
-    
-    final_messages = []
+    # Split by lines to avoid breaking words or tags
+    lines = text.split('\n')
+    chunks = []
     current_chunk = ""
 
-    for i in range(len(chunks)):
-        # Re-attach the split delimiter if it's part of the content
-        part = chunks[i]
-        if i > 0 and i % 2 == 1:
-            continue # This is the delimiter part
-        
-        if i > 0:
-            part = "*[" + part # Put back the bracket we split on
-
-        if len(current_chunk) + len(part) > 3900:
-            final_messages.append(current_chunk)
-            current_chunk = part
+    for line in lines:
+        # If adding this line exceeds 3500 chars, start a new chunk
+        if len(current_chunk) + len(line) + 1 > 3500:
+            chunks.append(current_chunk.strip())
+            current_chunk = line + "\n"
         else:
-            current_chunk += part
-
+            current_chunk += line + "\n"
+    
     if current_chunk:
-        final_messages.append(current_chunk)
+        chunks.append(current_chunk.strip())
 
-    for msg in final_messages:
-        if not msg.strip(): continue
+    print(f"📦 Message split into {len(chunks)} parts for Telegram.")
+
+    for i, msg in enumerate(chunks):
+        # Add a part indicator if there are multiple parts
+        final_text = f"(Part {i+1}/{len(chunks)})\n\n{msg}" if len(chunks) > 1 else msg
         
         payload = {
             "chat_id": TELEGRAM_CHAT_ID, 
-            "text": msg, 
+            "text": final_text, 
             "parse_mode": "Markdown"
         }
+        
         try:
             response = requests.post(url, json=payload, timeout=20)
-            if response.status_code != 200:
-                print(f"⚠️ Telegram API Warning: {response.text}")
-            time.sleep(1) # Small delay to avoid Telegram flood limits
+            if response.status_code == 200:
+                print(f"✅ Part {i+1} sent successfully.")
+            else:
+                print(f"⚠️ Telegram API Warning (Part {i+1}): {response.text}")
+            
+            # Anti-flood delay
+            time.sleep(1.5) 
         except Exception as e:
             print(f"❌ Telegram Error: {e}")
 
@@ -92,7 +90,7 @@ def generate_digest():
     print("🧠 Generating UPSC digest using Gemini 3.1 Flash Lite...")
     
     client = genai.Client(api_key=GEMINI_API_KEY)
-    # Using the current latest optimized model
+    # Gemini 3.1 Flash Lite is optimized for fast, concise summaries
     model_id = "gemini-3.1-flash-lite-preview" 
 
     try:
