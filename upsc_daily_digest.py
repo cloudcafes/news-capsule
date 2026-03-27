@@ -61,7 +61,7 @@ def generate_digest():
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     # Using the stable model ID to avoid 404 errors
-    model_id = "gemini-1.5-flash" 
+    model_id = "gemini-3-flash-preview" 
 
     try:
         response = client.models.generate_content(
