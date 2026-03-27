@@ -1,6 +1,7 @@
 import os
 import requests
 import time
+import re
 from google import genai
 from google.genai import types
 
@@ -35,31 +36,52 @@ Output Format:
  3> Points for critical thinking for Class 10th CBSE student preparing for Civil Services exam in future.
  4> Explanation for Points for critical thinking.
  5> Pointe to carry for future civil services exams.
- 
- 8716131630:AAGFbKJe9jq_h4MG7Tn16gguuOOU1-L8RNA
- 
- 8483179520
- 
- gemini-3-flash-preview
 """
 
 # ==============================================================================
-# 2. TELEGRAM SENDER
+# 2. TELEGRAM SENDER (REPAIRED)
 # ==============================================================================
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    # Split message if it's too long for Telegram (Limit is 4096)
-    if len(text) > 4000:
-        chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
-    else:
-        chunks = [text]
+    
+    # SMART SPLIT: Split by Topic instead of character count to avoid breaking *bold* tags
+    # We look for the start of a new topic (indicated by a headline in brackets)
+    chunks = re.split(r'(\n\*\[)', text)
+    
+    final_messages = []
+    current_chunk = ""
 
-    for chunk in chunks:
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
+    for i in range(len(chunks)):
+        # Re-attach the split delimiter if it's part of the content
+        part = chunks[i]
+        if i > 0 and i % 2 == 1:
+            continue # This is the delimiter part
+        
+        if i > 0:
+            part = "*[" + part # Put back the bracket we split on
+
+        if len(current_chunk) + len(part) > 3900:
+            final_messages.append(current_chunk)
+            current_chunk = part
+        else:
+            current_chunk += part
+
+    if current_chunk:
+        final_messages.append(current_chunk)
+
+    for msg in final_messages:
+        if not msg.strip(): continue
+        
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID, 
+            "text": msg, 
+            "parse_mode": "Markdown"
+        }
         try:
-            response = requests.post(url, json=payload, timeout=15)
+            response = requests.post(url, json=payload, timeout=20)
             if response.status_code != 200:
                 print(f"⚠️ Telegram API Warning: {response.text}")
+            time.sleep(1) # Small delay to avoid Telegram flood limits
         except Exception as e:
             print(f"❌ Telegram Error: {e}")
 
@@ -67,16 +89,13 @@ def send_telegram_message(text):
 # 3. MAIN LOGIC
 # ==============================================================================
 def generate_digest():
-    print("🧠 Generating UPSC digest using Gemini 2.0 Flash...")
+    print("🧠 Generating UPSC digest using Gemini 3.1 Flash Lite...")
     
-    # Initialize Client
     client = genai.Client(api_key=GEMINI_API_KEY)
-    
-    # Using the current stable model ID
+    # Using the current latest optimized model
     model_id = "gemini-3.1-flash-lite-preview" 
 
     try:
-        # GOOGLE SEARCH TOOL REMOVED HERE
         response = client.models.generate_content(
             model=model_id,
             contents=UPSC_PROMPT,
