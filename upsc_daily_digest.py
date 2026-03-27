@@ -14,7 +14,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 UPSC_PROMPT = """
 Role & Objective:
 Act as a friendly, expert UPSC mentor for a 10th-grade CBSE student. 
-Search the live web for the Top 10 high-impact news stories from the last 24-48 hours.
+Provide a "Daily Digest" of the Top 10 high-impact news stories from the last 24-48 hours.
 Focus: Science, Environment, Economy, Governance, or International Relations.
 
 Rules:
@@ -38,7 +38,7 @@ Output Format:
 # ==============================================================================
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    # Split message if it's too long for Telegram
+    # Split message if it's too long for Telegram (Limit is 4096)
     if len(text) > 4000:
         chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
     else:
@@ -47,7 +47,9 @@ def send_telegram_message(text):
     for chunk in chunks:
         payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "Markdown"}
         try:
-            requests.post(url, json=payload, timeout=15)
+            response = requests.post(url, json=payload, timeout=15)
+            if response.status_code != 200:
+                print(f"⚠️ Telegram API Warning: {response.text}")
         except Exception as e:
             print(f"❌ Telegram Error: {e}")
 
@@ -55,20 +57,20 @@ def send_telegram_message(text):
 # 3. MAIN LOGIC
 # ==============================================================================
 def generate_digest():
-    print("🧠 Initiating live web search using Gemini 1.5 Flash...")
+    print("🧠 Generating UPSC digest using Gemini 2.0 Flash...")
     
     # Initialize Client
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # Using the stable model ID to avoid 404 errors
-    model_id = "gemini-3-flash-preview" 
+    # Using the current stable model ID
+    model_id = "gemini-2.0-flash" 
 
     try:
+        # GOOGLE SEARCH TOOL REMOVED HERE
         response = client.models.generate_content(
             model=model_id,
             contents=UPSC_PROMPT,
             config=types.GenerateContentConfig(
-                tools=[{"google_search": {}}],
                 temperature=0.2
             )
         )
