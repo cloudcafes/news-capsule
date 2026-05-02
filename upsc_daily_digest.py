@@ -5,138 +5,152 @@ from google import genai
 from google.genai import types
 
 # ==============================================================================
+
 # 1. CONFIGURATION
+
 # ==============================================================================
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-UPSC_PROMPT = """
+PROMPT = """
 Role & Objective:
-Act as a professional equity research analyst specializing in event-driven trading for Indian stock markets. Your task is to autonomously scan the latest live web data and extract the Top 10 most important, high-impact news events that can affect NSE-listed stocks.
+Act as a professional equity research analyst specializing in event-driven trading for Indian stock markets. Extract Top 10 high-impact news affecting NSE stocks.
 
-Strict Rules for the LLM (MANDATORY):
-1> Do not include any pre or post commentary. Only follow OUTPUT FORMAT strictly.
-2> Focus ONLY on news that can directly impact stock prices (ignore general news).
-3> Prioritize these event types:
+Strict Rules:
 
-* Earnings surprises
-* Large orders / contracts
-* Mergers, acquisitions, stake sales
-* Government policy / regulatory changes
-* Capex announcements
-* Sector-wide developments (banking, IT, defense, energy, etc.)
-* Management changes
-* Legal issues / bans / approvals
-* Global macro impacting Indian markets (Fed, crude oil, geopolitics)
+* No commentary, only output
+* Focus only on market-moving news
+* Use Telegram HTML formatting ONLY
 
-4> Source news from prominent and reliable financial sources:
+Output Format (STRICT HTML):
 
-* Economic Times
-* Moneycontrol
-* Business Standard
-* LiveMint
-* Bloomberg
-* Reuters
-* NSE / BSE filings
+<b>TOP MARKET-MOVING NEWS (NSE)</b>
 
-5> Only include news from last 24–48 hours.
-6> Avoid duplicate or low-impact news.
-7> Each news must be mapped to specific NSE-listed stocks or sectors.
-8> Assign an impact rating: VERY HIGH / HIGH / MEDIUM / LOW
-9> Keep explanations concise, analytical, and trading-focused.
+(Repeat for 10 items)
 
-Tone:
-Use professional but simple language. No storytelling. No academic tone.
+<b>[Headline]</b>
 
----
-
-Output Format:
-
-### TOP MARKET-MOVING NEWS (NSE)
-
-(Repeat structure for each news)
-
-[Headline]
-[Summary] - Include details [Date of News, Stock/Sector Impacted: (Name NSE stocks or sector), The News: What exactly happened (fact-based), Why It Matters: Explain market impact clearly, Impact Level: VERY HIGH / HIGH / MEDIUM / LOW, Expected Direction: BULLISH / BEARISH / NEUTRAL, Trade Insight: (Optional short insight like breakout, watch levels, sentiment shift)]
+• <b>Stock/Sector:</b> Name
+• <b>The News:</b> Explanation
+• <b>Why It Matters:</b> Impact
+• <b>Impact:</b> VERY HIGH / HIGH / MEDIUM / LOW
+• <b>Direction:</b> BULLISH / BEARISH / NEUTRAL
+• <i>Trade Insight:</i> Optional
 """
 
 # ==============================================================================
-# 2. TELEGRAM SENDER (STRICT CHARACTER LIMIT)
+
+# 2. HTML SANITIZER (PREVENT TELEGRAM BREAKS)
+
 # ==============================================================================
+
+def sanitize_html(text):
+if not text:
+return ""
+return (
+text.replace("&", "&")
+.replace("<br>", "\n")
+.replace("<", "<")
+.replace(">", ">")
+.replace("<b>", "<b>")
+.replace("</b>", "</b>")
+.replace("<i>", "<i>")
+.replace("</i>", "</i>")
+)
+
+# ==============================================================================
+
+# 3. TELEGRAM SENDER (SAFE SPLIT + HTML MODE)
+
+# ==============================================================================
+
 def send_telegram_message(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    
-    # Split by lines to avoid breaking words or tags
-    lines = text.split('\n')
-    chunks = []
-    current_chunk = ""
+url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
-    for line in lines:
-        # If adding this line exceeds 3500 chars, start a new chunk
-        if len(current_chunk) + len(line) + 1 > 3500:
-            chunks.append(current_chunk.strip())
-            current_chunk = line + "\n"
-        else:
-            current_chunk += line + "\n"
-    
-    if current_chunk:
-        chunks.append(current_chunk.strip())
+```
+MAX_LEN = 3800  # safe margin under 4096
+lines = text.split("\n")
 
-    print(f"📦 Message split into {len(chunks)} parts for Telegram.")
+chunks = []
+current = ""
 
-    for i, msg in enumerate(chunks):
-        # Add a part indicator if there are multiple parts
-        final_text = f"(Part {i+1}/{len(chunks)})\n\n{msg}" if len(chunks) > 1 else msg
-        
-        payload = {
-            "chat_id": TELEGRAM_CHAT_ID, 
-            "text": final_text, 
-            "parse_mode": "Markdown"
-        }
-        
-        try:
-            response = requests.post(url, json=payload, timeout=20)
-            if response.status_code == 200:
-                print(f"✅ Part {i+1} sent successfully.")
-            else:
-                print(f"⚠️ Telegram API Warning (Part {i+1}): {response.text}")
-            
-            # Anti-flood delay
-            time.sleep(1.5) 
-        except Exception as e:
-            print(f"❌ Telegram Error: {e}")
+for line in lines:
+    if len(current) + len(line) + 1 > MAX_LEN:
+        chunks.append(current.strip())
+        current = line + "\n"
+    else:
+        current += line + "\n"
 
-# ==============================================================================
-# 3. MAIN LOGIC
-# ==============================================================================
-def generate_digest():
-    print("🧠 Generating UPSC digest using Gemini 3.1 Flash Lite...")
-    
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    # Gemini 3.1 Flash Lite is optimized for fast, concise summaries
-    model_id = "gemini-3.1-flash-lite-preview" 
+if current:
+    chunks.append(current.strip())
+
+print(f"📦 Sending {len(chunks)} message part(s)...")
+
+for i, msg in enumerate(chunks):
+    final_text = (
+        f"<b>Part {i+1}/{len(chunks)}</b>\n\n{msg}"
+        if len(chunks) > 1 else msg
+    )
+
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": sanitize_html(final_text),
+        "parse_mode": "HTML"
+    }
 
     try:
-        response = client.models.generate_content(
-            model=model_id,
-            contents=UPSC_PROMPT,
-            config=types.GenerateContentConfig(
-                temperature=0.2
-            )
-        )
-        
-        if response.text:
-            print("✅ Digest Generated. Sending to Telegram...")
-            send_telegram_message(response.text)
+        res = requests.post(url, json=payload, timeout=20)
+        if res.status_code == 200:
+            print(f"✅ Part {i+1} sent")
         else:
-            print("⚠️ Empty response from AI.")
-
+            print(f"⚠️ Telegram Error: {res.text}")
+        time.sleep(1.2)
     except Exception as e:
-        print(f"❌ Error during AI generation: {e}")
+        print(f"❌ Telegram Exception: {e}")
+```
 
-if __name__ == "__main__":
-    if not all([GEMINI_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID]):
-        print("❌ Missing API Keys in Environment Variables!")
+# ==============================================================================
+
+# 4. MAIN LOGIC
+
+# ==============================================================================
+
+def generate_digest():
+print("🧠 Generating market news...")
+
+```
+client = genai.Client(api_key=GEMINI_API_KEY)
+model_id = "gemini-1.5-flash"
+
+try:
+    response = client.models.generate_content(
+        model=model_id,
+        contents=PROMPT,
+        config=types.GenerateContentConfig(
+            temperature=0.2
+        )
+    )
+
+    if response.text:
+        print("✅ Generated successfully")
+        send_telegram_message(response.text)
     else:
-        generate_digest()
+        print("⚠️ Empty response")
+
+except Exception as e:
+    print(f"❌ AI Error: {e}")
+```
+
+# ==============================================================================
+
+# 5. ENTRY POINT
+
+# ==============================================================================
+
+if **name** == "**main**":
+if not all([GEMINI_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID]):
+print("❌ Missing environment variables!")
+else:
+generate_digest()
