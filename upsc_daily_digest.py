@@ -58,7 +58,7 @@ Output Format:
 (Repeat structure for each news)
 
 [Headline]
-[Summary] - Stock/Sector Impacted: (Name NSE stocks or sector), The News: What exactly happened (fact-based), Why It Matters: Explain market impact clearly, Impact Level: VERY HIGH / HIGH / MEDIUM / LOW, Expected Direction: BULLISH / BEARISH / NEUTRAL, Trade Insight: (Optional short insight like breakout, watch levels, sentiment shift)
+[Summary] - Include details [Date of News, Stock/Sector Impacted: (Name NSE stocks or sector), The News: What exactly happened (fact-based), Why It Matters: Explain market impact clearly, Impact Level: VERY HIGH / HIGH / MEDIUM / LOW, Expected Direction: BULLISH / BEARISH / NEUTRAL, Trade Insight: (Optional short insight like breakout, watch levels, sentiment shift)]
 """
 
 # ==============================================================================
