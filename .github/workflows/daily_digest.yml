@@ -2,9 +2,6 @@ name: Daily UPSC Digest Bot
 
 on:
 workflow_dispatch:
-
-# Runs every hour at minute 0
-
 schedule:
 - cron: '0 * * * *'
 
@@ -27,7 +24,7 @@ steps:
       python -m pip install --upgrade pip
       pip install google-genai requests
 
-  - name: Execute  UPSC Digest Script
+  - name: Execute UPSC Digest Script
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
