@@ -53,19 +53,12 @@ Use professional but simple language. No storytelling. No academic tone.
 
 Output Format:
 
-### TOP 10 MARKET-MOVING NEWS (NSE)
+### TOP MARKET-MOVING NEWS (NSE)
 
-(Repeat structure for 10 items)
+(Repeat structure for each news)
 
 [Headline]
-
-1> Stock/Sector Impacted: (Name NSE stocks or sector)
-2> The News: What exactly happened (fact-based)
-3> Why It Matters: Explain market impact clearly
-4> Impact Level: VERY HIGH / HIGH / MEDIUM / LOW
-5> Expected Direction: BULLISH / BEARISH / NEUTRAL
-6> Trade Insight: (Optional short insight like breakout, watch levels, sentiment shift)
-
+[Summary] - Stock/Sector Impacted: (Name NSE stocks or sector), The News: What exactly happened (fact-based), Why It Matters: Explain market impact clearly, Impact Level: VERY HIGH / HIGH / MEDIUM / LOW, Expected Direction: BULLISH / BEARISH / NEUTRAL, Trade Insight: (Optional short insight like breakout, watch levels, sentiment shift)
 """
 
 # ==============================================================================
