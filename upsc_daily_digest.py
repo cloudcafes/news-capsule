@@ -91,7 +91,7 @@ def generate_digest():
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     # Using Gemini 2.5 Flash for the optimal balance of speed and instruction following
-    model_id = "gemini-2.5-flash"
+    model_id = "gemini-2.5-flash-lite"
 
     try:
         response = client.models.generate_content(
